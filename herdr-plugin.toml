@@ -1,0 +1,30 @@
+id = "akhilnalliboina.herdr-statusbar"
+name = "Git and PR status bar"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "Local Git changes and cached GitHub PR statistics in Herdr's tab bar."
+platforms = ["macos", "linux"]
+
+[[actions]]
+id = "configure"
+title = "Add status-bar entry (backs up config)"
+contexts = ["workspace"]
+command = ["sh", "scripts/run.sh", "configure"]
+
+[[actions]]
+id = "unconfigure"
+title = "Remove only this plugin's status-bar entry"
+contexts = ["workspace"]
+command = ["sh", "scripts/run.sh", "unconfigure"]
+
+[[actions]]
+id = "open-pr"
+title = "Open current branch PR in browser"
+contexts = ["workspace"]
+command = ["sh", "scripts/run.sh", "open-pr"]
+
+[[actions]]
+id = "doctor"
+title = "Check status-bar dependencies and repository"
+contexts = ["workspace"]
+command = ["sh", "scripts/run.sh", "doctor"]
