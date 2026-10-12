@@ -156,4 +156,5 @@ class InstallerTests(unittest.TestCase):
         env.pop('HERDR_ACTIVE_PANE_CWD', None)
         env.pop('HERDR_PANE_ID', None)
         result = subprocess.run(command, shell=True, capture_output=True, text=True, env=env)
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, '', ''))
+        self.assertEqual((result.returncode, result.stderr), (0, ''))
+        self.assertTrue(result.stdout.startswith('CPU '), result.stdout)

@@ -12,11 +12,22 @@ import tomllib
 
 ID = "akhilnalliboina.herdr-statusbar"
 MARKER = "# herdr-statusbar:entry"
-DEFAULTS = """# Git / PR status-bar options. No credentials belong in this file.
+DEFAULTS = """# Full status-bar options. No credentials belong in this file.
 show_git = true
 show_pr = true
 show_pr_files = true
 show_errors = true
+show_cpu = true
+show_ram = true
+show_battery = true
+show_datetime = true
+datetime_format = "%d.%m.%Y %H:%M"
+# Weather sends configured coordinates to Open-Meteo. Enable and set a location to use it.
+show_weather = false
+# Example: Heidelberg, Germany. Replace with your own coordinates before enabling.
+# weather_latitude = 49.3988
+# weather_longitude = 8.6724
+weather_refresh_seconds = 600
 pr_refresh_seconds = 120
 failure_retry_seconds = 30
 command_timeout_seconds = 3

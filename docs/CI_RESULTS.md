@@ -1,4 +1,6 @@
-# Local matrix results — 12.10.2026
+# v0.1.0 local matrix results — 12.10.2026
+
+Historical evidence for v0.1.0 only. See [current v0.2.0 verification](SMOKE_TEST.md).
 
 **All four local matrix equivalents passed before the first GitHub Actions run.**
 

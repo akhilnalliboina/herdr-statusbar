@@ -12,6 +12,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from dashboard import Dashboard
 from install import ID, configure
 from statusbar import Settings, StatusBar, execute, github_repository
 
@@ -38,7 +39,7 @@ def active_cwd(explicit=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", action="version", version="herdr-statusbar 0.1.0")
+    parser.add_argument("--version", action="version", version="herdr-statusbar 0.2.0")
     parser.add_argument("command", choices=["bar", "doctor", "open-pr", "configure", "unconfigure"])
     base = Path(os.environ.get("HERDR_CONFIG_PATH", Path.home() / ".config/herdr/config.toml"))
     config_dir = Path(os.environ.get("HERDR_PLUGIN_CONFIG_DIR", base.parent / "plugins/config" / ID))
@@ -60,7 +61,8 @@ def main():
         settings = Settings.load(args.settings)
         cwd = active_cwd(args.cwd)
         if args.command == "bar":
-            text = StatusBar(args.state, settings).collect(cwd)
+            text = ' · '.join(part for part in (StatusBar(args.state, settings).collect(cwd),
+                                                 Dashboard(args.state, settings).collect()) if part)
             if text:
                 print(text)
             return 0
@@ -71,7 +73,9 @@ def main():
             print("Active repository directory:", cwd or "not supplied")
             print("Settings:", args.settings)
             print("State:", args.state)
-            print("Toolbar:", StatusBar(args.state, settings).collect(cwd) or "hidden (no repository/data)")
+            print("Git/PR:", StatusBar(args.state, settings).collect(cwd) or "hidden (no repository/data)")
+            print("System:", Dashboard(args.state, settings).collect() or "disabled/no data")
+            print("RAM includes cache; weather sends configured coordinates to Open-Meteo when enabled.")
             print("PR ? means lookup failed (authentication/network/timeout/invalid data).")
             print("PR gh? means gh is missing. PR cache? means state is not writable/safe.")
             return 0

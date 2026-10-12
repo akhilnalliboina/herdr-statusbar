@@ -1,32 +1,10 @@
-# Herdr Git and PR status bar
+# Herdr full status bar
 
-Local Git changes and remote GitHub pull-request statistics in Herdr's native tab bar.
+A configurable Herdr toolbar for local Git changes, GitHub PR statistics, CPU, RAM, battery, weather, and date/time. It uses one native Herdr status entry and follows Herdr's top/bottom tab-bar position.
 
 ```text
-Git Δ3 · PR #42 · 5 files · +128 −34
+Git Δ3 · PR #42 · 5 files · +128 −34 · CPU 37% · RAM 64% · ϟ93% · 12°C · 12.10.2026 11:29
 ```
-
-- **Git Δ3:** three changed files in the active pane's working tree. Includes staged, unstaged, untracked, and conflicted files. A file changed in both index and working tree counts once; a rename counts once.
-- **PR #42:** the open PR associated with the active branch.
-- **5 files / +128 −34:** GitHub's remote PR diff statistics. These do not include unpushed or uncommitted work.
-
-One toolbar entry; one small Python implementation; no pip dependencies, daemon, or background process. This is an unofficial community plugin, not affiliated with Herdr or GitHub.
-
-## Requirements
-
-- Herdr **0.9.3+** on **macOS or Linux**.
-- Python **3.11+** and Git on the Herdr **server's** PATH.
-- Optional: GitHub CLI (`gh`), signed in with access to the repository, for PR statistics and browser opening.
-- The repository must have a GitHub `origin` remote for PR statistics. HTTPS, SSH, and SCP-style Git URLs are supported, including GitHub Enterprise hosts. Detached HEAD and repositories without an origin show local changes only. Non-repository panes show nothing. PR lookup is explicitly pinned to origin; PRs against a fork's separate upstream repository are not automatically discovered in v0.1.
-
-On macOS:
-
-```sh
-brew install python git gh
-gh auth login
-```
-
-On Linux, install Python 3.11+, Git, and gh through your distribution's package manager. The launcher accepts `HERDR_STATUSBAR_PYTHON=/path/to/python3` if needed. No hard-coded Homebrew paths are shipped.
 
 ## Install
 
@@ -35,145 +13,89 @@ herdr plugin install akhilnalliboina/herdr-statusbar
 herdr plugin action invoke akhilnalliboina.herdr-statusbar.configure
 ```
 
-For a local checkout:
+Configure backs up the Herdr config, adds one marked toolbar entry, and reloads Herdr. It preserves the rest of your settings and shortcuts. It does not remove older/custom status entries; remove duplicate Git/PR, CPU/RAM, battery, weather, or clock entries yourself if you replace them with this plugin.
 
-```sh
-herdr plugin link /absolute/path/to/herdr-statusbar
-herdr plugin action invoke akhilnalliboina.herdr-statusbar.configure
-```
+Requirements: Herdr 0.9.3+, Python 3.11+, and Git on the Herdr server's PATH. GitHub CLI (`gh`) is optional; it provides PR data and the optional open-PR action. No Python packages are installed.
 
-Installing or linking only registers actions. **Configure is explicit:** it backs up `config.toml`, adds one marked entry at the beginning of `ui.tab_bar_right`, and reloads the server. It preserves existing entries, comments, tab position, theme, and shortcuts. It does not remove older/custom Git or PR entries; remove those manually to avoid duplicates.
+## Included segments
 
-The generated entry uses the Python interpreter detected at setup and absolute paths for this installation. Rerun configure after moving the checkout or interpreter. Run configure on each server/session config you use. Stop other config editors during setup.
+- **Git ΔN:** staged, unstaged, untracked, and conflicted files. Each file counts once; a rename counts once.
+- **PR #N · F files · +A −D:** open PR for the active branch. These are remote, pushed PR statistics, not local edits. Local status updates every five seconds; PR data has a separate cache per repository/branch and refreshes every 120 seconds by default.
+- **CPU N%:** latest CPU user+system utilization sample.
+- **RAM N%:** used physical memory percentage. On macOS this uses Herdr's `top` PhysMem used amount; on Linux it uses `MemTotal - MemFree`. This includes filesystem cache and buffers. It is a compact system-used metric, not an estimate of reclaimable/application-only memory.
+- **ϟN%:** battery percentage. Hidden when no battery is present.
+- **N°C:** current temperature from Open-Meteo for the configured latitude/longitude. Weather is off until you set coordinates and enable it. The city name is never displayed.
+- **Date/time:** local system time in German day-month-year, 24-hour format by default.
 
-Herdr's manifest cannot declare native toolbar entries. Setup supports conventional `[ui]` tables with `tab_bar_right = [...]`; unusual quoted/dotted/inline layouts are refused rather than rewritten. An invalid config or edited ownership marker is also refused. On a rejected reload, setup attempts to restore the prior file without overwriting concurrent edits. Backups live in the plugin state directory with private permissions; they may contain private user settings.
+System measurements update every 10 seconds; battery every 30 seconds; weather every 10 minutes. Each segment is independently configurable. A missing sensor or failed request does not prevent other segments from showing.
 
-For offline setup/testing:
+## Configure
 
-```sh
-sh scripts/run.sh configure --herdr-config /path/to/config.toml --no-reload
-```
-
-## Top or bottom placement
-
-The plugin follows Herdr's native tab bar position. It does not override your choice.
-
-To place it at the **bottom**, set this key in the existing `[ui]` section of your Herdr `config.toml`:
+Run `herdr plugin config-dir akhilnalliboina.herdr-statusbar`, then edit its `config.toml`. Setup enables Git, PR, CPU, RAM, battery, and date/time by default. Weather stays off until you configure a location:
 
 ```toml
-[ui]
-tab_bar_position = "bottom"
+show_weather = true
+weather_latitude = 49.3988
+weather_longitude = 8.6724
+weather_refresh_seconds = 600
 ```
 
-Use `"top"` to place it at the top instead. Do not add a second `[ui]` table if one already exists. Apply the change with:
+The example coordinates are Heidelberg, Germany. Replace them with your own. When weather is enabled, the plugin sends those coordinates to `api.open-meteo.com`; it does not send a city name. A short-lived temperature cache limits requests. Set `show_weather = false` to make no weather requests.
 
-```sh
-herdr server reload-config
-```
-
-This moves **both the tab row and its status entries**. Herdr 0.9.3 does not expose an independent position for just this plugin's status text. Configure, reconfigure, and unconfigure preserve either position.
-
-## Optional open-PR shortcut
-
-No shortcut is installed automatically. Pick an unused key; do not take `prefix+p`, which Herdr normally uses for the previous tab.
-
-Add this block to your Herdr config if `ctrl+alt+p` is free in your terminal:
-
-```toml
-[[keys.command]]
-key = "ctrl+alt+p"
-type = "plugin_action"
-command = "akhilnalliboina.herdr-statusbar.open-pr"
-description = "Open current branch PR in browser"
-```
-
-Then run `herdr server reload-config`. You can also invoke the action directly:
-
-```sh
-herdr plugin action invoke akhilnalliboina.herdr-statusbar.open-pr
-```
-
-The action runs `gh pr view --repo <origin repository> --web` in the selected pane's directory. It never sends keystrokes to a terminal. On remote servers, browser opening follows gh's behavior on that server; this plugin does not bridge URLs to the local desktop.
-
-**The toolbar text is not clickable.** Herdr strips terminal control sequences, including OSC 8 links.
-
-## Configuration
-
-Find the plugin configuration directory:
-
-```sh
-herdr plugin config-dir akhilnalliboina.herdr-statusbar
-```
-
-Edit its `config.toml`:
+Other options:
 
 ```toml
 show_git = true
 show_pr = true
 show_pr_files = true
 show_errors = true
+show_cpu = true
+show_ram = true
+show_battery = true
+show_datetime = true
+datetime_format = "%d.%m.%Y %H:%M"
 pr_refresh_seconds = 120
 failure_retry_seconds = 30
 command_timeout_seconds = 3
 ```
 
-Changes take effect on the next toolbar tick; no reload needed. Numeric settings must be whole numbers from 1 to 3600; `command_timeout_seconds` is limited to 1–3 seconds. Invalid or unreadable settings show `Status config?` and make no GitHub request. Toolbar polling stays at five seconds; edit the generated entry manually only after removing its ownership marker, or use a manual command entry.
+Set any `show_*` option to `false` to hide that segment. `show_errors = false` hides metric error markers. PR lookup targets GitHub `origin`; fork-upstream PR discovery is not automatic. GitHub CLI owns authentication; this plugin does not read credential files or print tokens.
 
-The GitHub CLI handles credentials and repository resolution. The plugin does not read credential files, ask for authentication, perform token refresh itself, or install dependencies. Set `show_pr = false` for local-only operation with no GitHub calls.
+To move the tabs and status bar to the bottom, set `tab_bar_position = "bottom"` in the existing `[ui]` section of Herdr's `config.toml`, then run `herdr server reload-config`. Use `"top"` to put them at the top. The position applies to the full native tab row, not only this plugin.
 
-## Refresh and pane switching
+## Optional PR shortcut
 
-Local status is collected every five seconds. PR snapshots refresh at most once per configured interval **per repository, branch, origin, and GH_HOST**. No-PR results are cached, too. Switching to another repository, branch, remote, or worktree selects another cache; the previous branch's PR is never reused. Herdr may retain an entry's previous output until the next scheduled command completes (usually within five seconds, plus a bounded initial lookup).
+No shortcut is installed automatically. Choose a free key. The action is also available as:
 
-Network failures replace the expired snapshot with an error marker; old statistics are not presented as current. Failures use the shorter retry interval. Concurrent windows use a non-blocking per-key file lock, so only one request runs; another window temporarily shows `PR …`. Locked requests are still bounded by the subprocess timeout.
+```sh
+herdr plugin action invoke akhilnalliboina.herdr-statusbar.open-pr
+```
 
-Cache files have mode 0600. They contain only timestamp, result status, and validated numeric PR fields. Repository/branch/remote identity is hashed in filenames; raw paths, URLs, tokens, PR bodies, and raw stderr are not cached. Plugin state persists after unlink/uninstall; delete its cache directory yourself when no sessions are using it. No automatic cache eviction is included in v0.1.
+It opens the active branch's PR with `gh pr view --web`; it does not send keystrokes to a pane. Herdr strips terminal links, so the status text is not clickable.
 
-## Diagnostics
+## Diagnose and remove
 
 ```sh
 herdr plugin action invoke akhilnalliboina.herdr-statusbar.doctor
 herdr plugin log list --plugin akhilnalliboina.herdr-statusbar
 ```
 
-| Display | Meaning |
-| --- | --- |
-| `Git Δ0` | The active working tree is clean. |
-| No entry | Active pane is not a repository, Git failed, or both segments are disabled. |
-| Git only | No open PR, detached HEAD, or no `origin` remote. |
-| `PR gh?` | GitHub CLI is unavailable on the server's PATH. |
-| `PR remote?` | Origin is a local path or an unsupported remote URL. |
-| `PR ?` | Authentication, network, timeout, or invalid GitHub data. Run `gh pr view` in that pane to diagnose. |
-| `PR cache?` | Plugin state cannot be safely written. Fix ownership/permissions; do not make it world-writable. |
-| `PR …` | Another window is refreshing this branch's snapshot. |
-| `Status config?` | Plugin configuration is invalid/unreadable. |
-
-Herdr may hide the entire status area when it cannot fit next to the tabs. Shorten other entries or set `show_pr_files = false`.
-
-## Remove
-
-Remove the managed entry **before** unregistering the plugin:
+Remove the managed entry before uninstalling:
 
 ```sh
 herdr plugin action invoke akhilnalliboina.herdr-statusbar.unconfigure
 herdr plugin uninstall akhilnalliboina.herdr-statusbar
 ```
 
-For a local link, use `herdr plugin unlink akhilnalliboina.herdr-statusbar` instead. Remove any optional keybinding you added yourself. Unconfigure removes only its marked toolbar line and preserves later user edits, plugin settings, cache, and backups. It does not restore an old whole-config backup over newer settings. An empty toolbar array/table created by setup may remain.
-
 ## Development
 
 ```sh
 python3 -B -m unittest discover -s tests -v
 sh -n scripts/run.sh
-python3 scripts/smoke_herdr.py  # optional: real server in a disposable /tmp profile
+python3 -B scripts/smoke_herdr.py --position bottom
 python3 scripts/package.py
 ```
 
-Tests exercise real Git repositories, worktrees, unusual filenames, renames, cache isolation/expiry, errors, locking, config preservation, permissions, and rollback. GitHub responses are controlled in tests; no credentials or network access are needed. CI runs the suite on macOS and Linux with Python 3.11 and 3.14.
+CI runs Python 3.11 and 3.14 on macOS and Linux. GitHub responses in unit tests are fixtures; actual PR lookup needs an authenticated `gh` on the Herdr server. This is an unofficial community plugin and is not affiliated with Herdr or GitHub.
 
-See [release checklist](docs/RELEASING.md) and [manual verification](docs/SMOKE_TEST.md). Windows and system/weather/AI-usage segments are intentionally outside v0.1. Existing custom entries for those features can remain beside this plugin.
-
-## License
-
-MIT — [LICENSE](LICENSE).
+MIT license. See [CHANGELOG.md](CHANGELOG.md).

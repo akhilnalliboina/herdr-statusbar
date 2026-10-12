@@ -21,6 +21,15 @@ class Settings:
     show_pr: bool = True
     show_pr_files: bool = True
     show_errors: bool = True
+    show_cpu: bool = True
+    show_ram: bool = True
+    show_battery: bool = True
+    show_weather: bool = False
+    show_datetime: bool = True
+    datetime_format: str = "%d.%m.%Y %H:%M"
+    weather_latitude: float = 0.0
+    weather_longitude: float = 0.0
+    weather_refresh_seconds: int = 600
     pr_refresh_seconds: int = 120
     failure_retry_seconds: int = 30
     command_timeout_seconds: int = 3
@@ -36,10 +45,21 @@ class Settings:
             if key.startswith("show_"):
                 if type(value) is not bool:
                     raise ValueError(f"{key} must be a boolean")
+            elif key == "datetime_format":
+                if (not isinstance(value, str) or not value or len(value) > 80
+                        or any(ord(char) < 32 or ord(char) == 127 for char in value)
+                        or "%n" in value or "%t" in value):
+                    raise ValueError("Invalid datetime format")
+            elif key in ("weather_latitude", "weather_longitude"):
+                maximum = 90 if key == "weather_latitude" else 180
+                if type(value) not in (int, float) or not math.isfinite(value) or abs(value) > maximum:
+                    raise ValueError("Invalid weather coordinates")
             elif type(value) is not int or not 1 <= value <= 3600:
                 raise ValueError(f"{key} must be an integer from 1 to 3600")
         if data.get("command_timeout_seconds", 3) > 3:
             raise ValueError("command_timeout_seconds must be at most 3")
+        if data.get("show_weather") and not {"weather_latitude", "weather_longitude"} <= data.keys():
+            raise ValueError("Weather requires latitude and longitude")
         return cls(**data)
 
 

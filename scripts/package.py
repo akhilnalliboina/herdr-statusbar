@@ -16,7 +16,7 @@ if not re.fullmatch(r"\d+\.\d+\.\d+", version):
 if f'version="herdr-statusbar {version}"' not in (root / "cli.py").read_text():
     raise SystemExit("CLI and manifest versions differ")
 files = [root / name for name in ["README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", ".gitignore",
-                                  "herdr-plugin.toml", "cli.py", "install.py", "statusbar.py"]]
+                                  "herdr-plugin.toml", "cli.py", "install.py", "statusbar.py", "dashboard.py"]]
 for directory in ["scripts", "tests", "docs", ".github/workflows"]:
     files.extend(path for path in (root / directory).rglob("*")
                  if path.is_file() and path.suffix in (".py", ".sh", ".md", ".yml")

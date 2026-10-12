@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-10-12
+
+- Expand the plugin from Git/PR only to the complete configurable status bar: CPU, RAM, battery, weather temperature, and local date/time.
+- Enable CPU, RAM, battery, and German-format date/time by default. Weather requires user-configured coordinates and remains disabled until enabled.
+- Cache system readings and weather separately; safely show independent metric errors.
+- Document cache-inclusive RAM accounting and weather coordinate privacy.
+- Preserve native top/bottom placement and existing user shortcuts.
+
 ## 0.1.0 — 2026-10-12
 
 - Count local staged, unstaged, untracked, and conflicted Git files.

@@ -1,8 +1,8 @@
 id = "akhilnalliboina.herdr-statusbar"
-name = "Git and PR status bar"
-version = "0.1.0"
+name = "Full status bar"
+version = "0.2.0"
 min_herdr_version = "0.9.3"
-description = "Local Git changes and cached GitHub PR statistics in Herdr's tab bar."
+description = "Git, PR, CPU, RAM, battery, weather, and date/time in Herdr's top or bottom tab bar."
 platforms = ["macos", "linux"]
 
 [[actions]]

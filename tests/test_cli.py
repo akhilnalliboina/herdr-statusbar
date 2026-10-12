@@ -23,14 +23,17 @@ class CLITests(unittest.TestCase):
                                '--settings', str(self.settings), '--state', str(self.state), *extra],
                               capture_output=True, text=True, env=self.env, timeout=12)
 
-    def test_no_context_produces_no_output_or_state(self):
+    def test_system_status_works_without_repository_context(self):
         result = self.cli('bar')
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, '', ''))
-        self.assertFalse(self.state.exists())
+        self.assertEqual((result.returncode, result.stderr), (0, ''))
+        self.assertTrue(result.stdout.startswith('CPU '), result.stdout)
+        self.assertIn('RAM ', result.stdout)
+        self.assertRegex(result.stdout, r'\d{2}\.\d{2}\.\d{4}')
+        self.assertTrue(self.state.exists())
 
     def test_explicit_cwd_and_local_only(self):
         subprocess.run(['git', 'init', '-q', str(self.directory)], check=True)
-        self.settings.write_text('show_pr=false\n')
+        self.settings.write_text('show_pr=false\nshow_cpu=false\nshow_ram=false\nshow_battery=false\nshow_datetime=false\n')
         result = self.cli('bar', '--cwd', str(self.directory))
         self.assertEqual((result.returncode, result.stdout, result.stderr), (0, 'Git Δ1\n', ''))
 
