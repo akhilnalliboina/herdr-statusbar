@@ -2,17 +2,29 @@
 from datetime import datetime
 import fcntl
 import hashlib
+import http.client
 import json
 import math
 import os
 from pathlib import Path
 import re
 import sys
+import threading
 import time
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
 from statusbar import atomic_json, execute
+
+
+# Marks a segment whose value is being refreshed by another process and has no
+# cached reading yet; it is omitted instead of being reported as a failure.
+PENDING = object()
+# Seconds one render may spend refreshing system segments. The Herdr entry is
+# killed at timeout_seconds = 10 and Git/PR lookups need part of that budget.
+REFRESH_BUDGET = 3.0
+COLLECT_ERRORS = (OSError, ValueError, KeyError, IndexError, TypeError, ZeroDivisionError,
+                  http.client.HTTPException)
 
 
 def percentage(value):
@@ -65,12 +77,17 @@ def battery(platform=sys.platform, run=execute, power=Path('/sys/class/power_sup
     if platform.startswith('linux'):
         values = []
         for device in sorted(power.glob('*')):
-            if (device / 'type').read_text().strip() == 'Battery':
+            try:
+                if (device / 'type').read_text().strip() != 'Battery':
+                    continue
                 if (device / 'present').exists() and (device / 'present').read_text().strip() == '0':
                     continue
                 level = int((device / 'capacity').read_text())
-                if percentage(level):
-                    values.append(level)
+            except (OSError, ValueError):
+                # One unreadable or mid-hotplug supply must not hide the others.
+                continue
+            if percentage(level):
+                values.append(level)
         # Multiple batteries: average their reported percentages, not energy weights.
         return {'level': sum(values) / len(values) if values else None}
     return {'level': None}
@@ -91,12 +108,47 @@ class Dashboard:
     def __init__(self, state, settings, platform=sys.platform, clock=time.time,
                  system=None, get_battery=None, get_weather=None, now=datetime.now):
         self.state = Path(state)
+        self.deadline = time.monotonic() + REFRESH_BUDGET
         self.settings = settings
         self.clock = clock
         self.now = now
         self.system = system or (mac_system if platform == 'darwin' else linux_system)
         self.get_battery = get_battery or (lambda: battery(platform))
         self.get_weather = get_weather or (lambda: weather(settings.weather_latitude, settings.weather_longitude))
+
+    def bounded(self, collect):
+        """Run collect() but give up when the render's refresh budget is spent.
+
+        urlopen's timeout is per socket operation and does not cover DNS, so the
+        deadline is enforced from outside; the abandoned daemon thread dies with
+        the process.
+        """
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError('Refresh budget exhausted')
+        box = {}
+
+        def work():
+            try:
+                box['data'] = collect()
+            except Exception as error:
+                box['error'] = error
+        thread = threading.Thread(target=work, daemon=True)
+        thread.start()
+        thread.join(remaining)
+        if thread.is_alive():
+            raise TimeoutError('Collection timed out')
+        if 'error' in box:
+            raise box['error']
+        return box['data']
+
+    @staticmethod
+    def snapshot(path):
+        try:
+            stored = json.loads(path.read_text())
+            return stored['observed_at'], stored['data']
+        except (OSError, ValueError, KeyError, TypeError):
+            return None, None
 
     def cached(self, key, ttl, collect, valid):
         directory = self.state / 'system'
@@ -111,23 +163,23 @@ class Dashboard:
                 try:
                     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 except BlockingIOError:
-                    return None
+                    # Another render is refreshing: show the last reading, however old.
+                    _, stale = self.snapshot(path)
+                    return stale if valid(stale) else PENDING
                 now = self.clock()
+                stamp, data = self.snapshot(path)
+                age = now - stamp if type(stamp) in (int, float) and math.isfinite(stamp) else -1
+                interval = ttl if valid(data) else self.settings.failure_retry_seconds
+                if 0 <= age < interval:
+                    return data if valid(data) else None
+                if self.deadline - time.monotonic() <= 0:
+                    # No time left to refresh; do not record a failure for it.
+                    return data if valid(data) else PENDING
                 try:
-                    stored = json.loads(path.read_text())
-                    stamp = stored['observed_at']
-                    data = stored['data']
-                    age = now - stamp if type(stamp) in (int, float) and math.isfinite(stamp) else -1
-                    interval = ttl if valid(data) else self.settings.failure_retry_seconds
-                    if 0 <= age < interval:
-                        return data if valid(data) else None
-                except (OSError, ValueError, KeyError, TypeError):
-                    pass
-                try:
-                    data = collect()
+                    data = self.bounded(collect)
                     if not valid(data):
                         data = None
-                except (OSError, ValueError, KeyError, TypeError, ZeroDivisionError):
+                except COLLECT_ERRORS:
                     data = None
                 atomic_json(path, {'observed_at': now, 'data': data})
                 return data
@@ -137,13 +189,14 @@ class Dashboard:
     def collect(self):
         parts = []
         options = self.settings
+        self.deadline = time.monotonic() + REFRESH_BUDGET
         if options.show_cpu or options.show_ram:
             valid = lambda data: (isinstance(data, dict) and set(data) == {'cpu', 'ram'}
                                   and all(value is None or percentage(value) for value in data.values())
                                   and any(value is not None for value in data.values()))
             data = self.cached('usage', 10, self.system, valid)
             for enabled, field, title in ((options.show_cpu, 'cpu', 'CPU'), (options.show_ram, 'ram', 'RAM')):
-                if enabled:
+                if enabled and data is not PENDING:
                     value = data.get(field) if data else None
                     if percentage(value):
                         parts.append(f'{title} {value:.0f}%')
@@ -153,7 +206,9 @@ class Dashboard:
             valid = lambda data: (isinstance(data, dict) and set(data) == {'level'}
                                   and (data['level'] is None or percentage(data['level'])))
             data = self.cached('battery', 30, self.get_battery, valid)
-            if data and percentage(data['level']):
+            if data is PENDING:
+                pass
+            elif data and percentage(data['level']):
                 parts.append(f"ϟ{data['level']:.0f}%")
             elif data is None and options.show_errors:
                 parts.append('Battery ?')
@@ -164,7 +219,9 @@ class Dashboard:
                                   and type(data['temperature']) in (int, float)
                                   and math.isfinite(data['temperature']) and -100 <= data['temperature'] <= 100)
             data = self.cached(key, options.weather_refresh_seconds, self.get_weather, valid)
-            if data:
+            if data is PENDING:
+                pass
+            elif data:
                 parts.append(f"{data['temperature']:.0f}°C")
             elif options.show_errors:
                 parts.append('Weather ?')

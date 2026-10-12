@@ -1,6 +1,10 @@
+import fcntl
+import http.client
 import json
+import os
 from pathlib import Path
 import tempfile
+import time
 import unittest
 
 from dashboard import Dashboard, battery, linux_system, mac_system, weather
@@ -128,3 +132,53 @@ class DashboardTests(unittest.TestCase):
             weather_longitude=8.0),get_weather=lambda:{'temperature':10})
         other.collect()
         self.assertEqual(len(list((self.root/'state/system').glob('weather-*.json'))),2)
+
+    def make(self, **kwargs):
+        options = dict(show_cpu=False, show_ram=False, show_battery=False, show_datetime=False,
+                       show_weather=True, weather_latitude=49.0, weather_longitude=8.0,
+                       show_errors=True)
+        options.update(kwargs.pop('options', {}))
+        return Dashboard(self.root / 'fresh', Settings(**options),
+                         clock=lambda: self.now[0], **kwargs)
+
+    def test_http_and_index_errors_become_markers(self):
+        def truncated():
+            raise http.client.IncompleteRead(b'')
+        self.assertEqual(self.make(get_weather=truncated).collect(), 'Weather ?')
+        def empty():
+            raise IndexError
+        dash = self.make(options=dict(show_weather=False, show_cpu=True), system=empty)
+        self.assertEqual(dash.collect(), 'CPU ?')
+
+    def test_lock_contention_returns_stale_value_or_omits_segment(self):
+        dash = self.make(get_weather=lambda: {'temperature': 7})
+        self.assertEqual(dash.collect(), '7°C')
+        directory = self.root / 'fresh/system'
+        lock = os.open(next(directory.glob('*.lock')), os.O_RDWR)
+        self.addCleanup(os.close, lock)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        self.now[0] += 100000  # long past the TTL
+        self.assertEqual(dash.collect(), '7°C')
+        for stale in directory.glob('*.json'):
+            stale.unlink()
+        self.assertEqual(dash.collect(), '')
+
+    def test_slow_collector_is_bounded_and_marked_failed(self):
+        import dashboard
+        original = dashboard.REFRESH_BUDGET
+        dashboard.REFRESH_BUDGET = 0.2
+        self.addCleanup(setattr, dashboard, 'REFRESH_BUDGET', original)
+        started = time.monotonic()
+        text = self.make(get_weather=lambda: time.sleep(5) or {'temperature': 1}).collect()
+        self.assertEqual(text, 'Weather ?')
+        self.assertLess(time.monotonic() - started, 2)
+
+    def test_linux_battery_skips_unreadable_entries(self):
+        power = self.root / 'power'
+        for name, files in {'BAT0': {'type': 'Battery'},  # no capacity
+                            'AC': {},                      # no type
+                            'BAT1': {'type': 'Battery', 'capacity': '55'}}.items():
+            (power / name).mkdir(parents=True)
+            for file, text in files.items():
+                (power / name / file).write_text(text)
+        self.assertEqual(battery(platform='linux', power=power), {'level': 55})

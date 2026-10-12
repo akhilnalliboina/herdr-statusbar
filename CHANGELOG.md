@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Keep the whole bar alive when a system segment fails unexpectedly: truncated weather responses (`HTTPException`) and malformed `/proc/meminfo` values (`IndexError`) now show `Weather ?` / `CPU ?` instead of crashing `bar`.
+- Show the last cached reading, or omit the segment, when another render holds the refresh lock, instead of a spurious `CPU ?` / `Battery ?` / `Weather ?`.
+- Bound system and weather refreshes to a 3 s per-render budget so slow DNS or `top` cannot push the bar past the Herdr entry timeout.
+- Skip unreadable Linux power-supply entries instead of failing the battery reading for all of them.
+
 ## 0.2.0 — 2026-10-12
 
 - Expand the plugin from Git/PR only to the complete configurable status bar: CPU, RAM, battery, weather temperature, and local date/time.
