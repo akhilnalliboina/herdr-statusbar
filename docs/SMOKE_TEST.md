@@ -8,4 +8,4 @@
 - Live macOS system output included CPU, RAM percentage, battery percentage, weather temperature, and the German date/time format: `CPU 19% · RAM 94% · ϟ80% · 13°C · 12.10.2026 12:05` (sample values).
 - The RAM metric includes cache and buffers; see the README for platform-specific accounting.
 
-Linux ran in an emulated x86_64 Docker container on an arm64 Mac. GitHub CI still needs to run on the v0.2.0 source commit before tagging. The live Herdr toolbar now uses the plugin's integrated segments; visual confirmation of the full combined line is pending.
+Linux ran in an emulated x86_64 Docker container on an arm64 Mac. The live Herdr toolbar now uses the plugin's integrated segments. The full combined line was verified from the actual CLI output; no screenshot was captured by the agent.
