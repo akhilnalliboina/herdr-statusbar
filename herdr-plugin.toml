@@ -1,6 +1,6 @@
 id = "akhilnalliboina.herdr-statusbar"
-name = "Full status bar"
-version = "0.2.0"
+name = "Git + system status bar"
+version = "0.2.1"
 min_herdr_version = "0.9.3"
 description = "Git, PR, CPU, RAM, battery, weather, and date/time in Herdr's top or bottom tab bar."
 platforms = ["macos", "linux"]

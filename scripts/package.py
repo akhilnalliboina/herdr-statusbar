@@ -13,8 +13,6 @@ manifest = tomllib.loads((root / "herdr-plugin.toml").read_text())
 version = manifest["version"]
 if not re.fullmatch(r"\d+\.\d+\.\d+", version):
     raise SystemExit("Invalid release version")
-if f'version="herdr-statusbar {version}"' not in (root / "cli.py").read_text():
-    raise SystemExit("CLI and manifest versions differ")
 files = [root / name for name in ["README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", ".gitignore",
                                   "herdr-plugin.toml", "cli.py", "install.py", "statusbar.py", "dashboard.py"]]
 for directory in ["scripts", "tests", "docs", ".github/workflows"]:

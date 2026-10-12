@@ -11,12 +11,18 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tomllib
 
 from dashboard import Dashboard
 from install import ID, configure
 from statusbar import Settings, StatusBar, execute, github_repository
 
 ROOT = Path(__file__).resolve().parent
+
+
+def plugin_version():
+    """The manifest is the single source of the release version."""
+    return tomllib.loads((ROOT / "herdr-plugin.toml").read_text())["version"]
 
 
 def active_cwd(explicit=None):
@@ -39,7 +45,7 @@ def active_cwd(explicit=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", action="version", version="herdr-statusbar 0.2.0")
+    parser.add_argument("--version", action="version", version="herdr-statusbar " + plugin_version())
     parser.add_argument("command", choices=["bar", "doctor", "open-pr", "configure", "unconfigure"])
     base = Path(os.environ.get("HERDR_CONFIG_PATH", Path.home() / ".config/herdr/config.toml"))
     config_dir = Path(os.environ.get("HERDR_PLUGIN_CONFIG_DIR", base.parent / "plugins/config" / ID))

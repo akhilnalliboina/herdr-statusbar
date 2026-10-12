@@ -28,7 +28,7 @@ class CLITests(unittest.TestCase):
         self.assertEqual((result.returncode, result.stderr), (0, ''))
         self.assertTrue(result.stdout.startswith('CPU '), result.stdout)
         self.assertIn('RAM ', result.stdout)
-        self.assertRegex(result.stdout, r'\d{2}\.\d{2}\.\d{4}')
+        self.assertRegex(result.stdout, r'\d{4}-\d{2}-\d{2}')
         self.assertTrue(self.state.exists())
 
     def test_explicit_cwd_and_local_only(self):

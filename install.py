@@ -21,7 +21,7 @@ show_cpu = true
 show_ram = true
 show_battery = true
 show_datetime = true
-datetime_format = "%d.%m.%Y %H:%M"
+datetime_format = "%Y-%m-%d %H:%M"
 # Weather sends configured coordinates to Open-Meteo. Enable and set a location to use it.
 show_weather = false
 # Example: Heidelberg, Germany. Replace with your own coordinates before enabling.

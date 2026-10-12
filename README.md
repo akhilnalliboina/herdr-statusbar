@@ -1,9 +1,11 @@
-# Herdr full status bar
+# Herdr Git + system status bar
+
+[![CI](https://github.com/akhilnalliboina/herdr-statusbar/actions/workflows/ci.yml/badge.svg)](https://github.com/akhilnalliboina/herdr-statusbar/actions/workflows/ci.yml)
 
 A configurable Herdr toolbar for local Git changes, GitHub PR statistics, CPU, RAM, battery, weather, and date/time. It uses one native Herdr status entry and follows Herdr's top/bottom tab-bar position.
 
 ```text
-Git Δ3 · PR #42 · 5 files · +128 −34 · CPU 37% · RAM 64% · ϟ93% · 12°C · 12.10.2026 11:29
+Git Δ3 · PR #42 · 5 files · +128 −34 · CPU 37% · RAM 64% · ϟ93% · 12°C · 2026-10-12 11:29
 ```
 
 ## Install
@@ -22,10 +24,10 @@ Requirements: Herdr 0.9.3+, Python 3.11+, and Git on the Herdr server's PATH. Gi
 - **Git ΔN:** staged, unstaged, untracked, and conflicted files. Each file counts once; a rename counts once.
 - **PR #N · F files · +A −D:** open PR for the active branch. These are remote, pushed PR statistics, not local edits. Local status updates every five seconds; PR data has a separate cache per repository/branch and refreshes every 120 seconds by default.
 - **CPU N%:** latest CPU user+system utilization sample.
-- **RAM N%:** used physical memory percentage. On macOS this uses Herdr's `top` PhysMem used amount; on Linux it uses `MemTotal - MemFree`. This includes filesystem cache and buffers. It is a compact system-used metric, not an estimate of reclaimable/application-only memory.
+- **RAM N%:** used physical memory percentage. On macOS this uses Herdr's `top` PhysMem used amount; on Linux it uses `MemTotal - MemAvailable`, so reclaimable filesystem cache is not counted as used (kernels without `MemAvailable` fall back to `MemFree`). On macOS, `top` rounds the figure, so it moves in coarse steps.
 - **ϟN%:** battery percentage. Hidden when no battery is present.
 - **N°C:** current temperature from Open-Meteo for the configured latitude/longitude. Weather is off until you set coordinates and enable it. The city name is never displayed.
-- **Date/time:** local system time in German day-month-year, 24-hour format by default.
+- **Date/time:** local system time, ISO `YYYY-MM-DD HH:MM` (24-hour) by default; change `datetime_format` for another layout.
 
 System measurements update every 10 seconds; battery every 30 seconds; weather every 10 minutes. Each segment is independently configurable. A missing sensor or failed request does not prevent other segments from showing.
 
@@ -53,7 +55,7 @@ show_cpu = true
 show_ram = true
 show_battery = true
 show_datetime = true
-datetime_format = "%d.%m.%Y %H:%M"
+datetime_format = "%Y-%m-%d %H:%M"
 pr_refresh_seconds = 120
 failure_retry_seconds = 30
 command_timeout_seconds = 3

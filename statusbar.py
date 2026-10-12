@@ -26,7 +26,7 @@ class Settings:
     show_battery: bool = True
     show_weather: bool = False
     show_datetime: bool = True
-    datetime_format: str = "%d.%m.%Y %H:%M"
+    datetime_format: str = "%Y-%m-%d %H:%M"
     weather_latitude: float = 0.0
     weather_longitude: float = 0.0
     weather_refresh_seconds: int = 600
@@ -220,14 +220,19 @@ class StatusBar:
             return ""
         parts = []
         if self.settings.show_git:
-            raw = self._git(cwd, "status", "--porcelain=v1", "-z", "--untracked-files=all")
-            if raw is None:
+            result = self.run(["git", "--no-optional-locks", "-C", str(cwd), "status",
+                               "--porcelain=v1", "-z", "--untracked-files=normal"], cwd)
+            if result is None:
+                # Timed out or could not start: keep the bar alive, and PR still shows.
+                parts.append("Git …")
+            elif result.returncode != 0:
                 # Git failure (including a non-repository) must not query GitHub.
                 return ""
-            try:
-                parts.append(f"Git Δ{changed_files(raw)}")
-            except ValueError:
-                return ""
+            else:
+                try:
+                    parts.append(f"Git Δ{changed_files(result.stdout)}")
+                except ValueError:
+                    return ""
         if self.settings.show_pr:
             root = self._git(cwd, "rev-parse", "--show-toplevel")
             branch = self._git(cwd, "symbolic-ref", "--quiet", "--short", "HEAD")

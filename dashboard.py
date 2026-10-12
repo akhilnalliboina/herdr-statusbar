@@ -47,7 +47,9 @@ def linux_system(proc=Path('/proc'), sleep=time.sleep):
         name, _, value = line.partition(':')
         memory[name] = int(value.split()[0])
     size = memory['MemTotal']
-    ram = 100 * (1 - memory['MemFree'] / size) if size > 0 else None
+    # MemAvailable excludes reclaimable cache; kernels before 3.14 lack it.
+    free = memory.get('MemAvailable', memory['MemFree'])
+    ram = 100 * (1 - free / size) if size > 0 else None
     return {'cpu': cpu, 'ram': ram}
 
 

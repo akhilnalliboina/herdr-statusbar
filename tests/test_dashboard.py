@@ -36,8 +36,8 @@ class DashboardTests(unittest.TestCase):
             now=lambda: __import__('datetime').datetime(2026,10,12,11,29))
 
     def test_segments_format_and_cache(self):
-        self.assertEqual(self.dashboard.collect(), 'CPU 37% · RAM 64% · ϟ93% · 12°C · 12.10.2026 11:29')
-        self.assertEqual(self.dashboard.collect(), 'CPU 37% · RAM 64% · ϟ93% · 12°C · 12.10.2026 11:29')
+        self.assertEqual(self.dashboard.collect(), 'CPU 37% · RAM 64% · ϟ93% · 12°C · 2026-10-12 11:29')
+        self.assertEqual(self.dashboard.collect(), 'CPU 37% · RAM 64% · ϟ93% · 12°C · 2026-10-12 11:29')
         self.assertEqual((len(self.system_calls),len(self.battery_calls),len(self.weather_calls)),(1,1,1))
 
     def test_failed_metric_is_independent(self):
@@ -49,7 +49,9 @@ class DashboardTests(unittest.TestCase):
     def test_no_repository_context_still_shows_system_status(self):
         result=__import__('subprocess').run([__import__('sys').executable,'-B',str(Path(__file__).parents[1]/'cli.py'),
             'bar','--settings',str(self.root/'settings.toml'),'--state',str(self.root/'state')],
-            capture_output=True,text=True,env={**__import__('os').environ,'HOME':str(self.root)})
+            capture_output=True,text=True,cwd=self.root,
+            env={**{k:v for k,v in __import__('os').environ.items() if not k.startswith('HERDR_')},
+                 'HOME':str(self.root)})
         self.assertEqual((result.returncode,result.stderr),(0,''))
         self.assertTrue(result.stdout.startswith('CPU '),result.stdout)
         self.assertIn('RAM ',result.stdout)
@@ -57,7 +59,9 @@ class DashboardTests(unittest.TestCase):
         (self.root/'settings.toml').write_text('show_cpu=true\n')
         result=__import__('subprocess').run([__import__('sys').executable,'-B',str(Path(__file__).parents[1]/'cli.py'),
             'bar','--settings',str(self.root/'settings.toml'),'--state',str(self.root/'state')],
-            capture_output=True,text=True,env={**__import__('os').environ,'HOME':str(self.root)})
+            capture_output=True,text=True,cwd=self.root,
+            env={**{k:v for k,v in __import__('os').environ.items() if not k.startswith('HERDR_')},
+                 'HOME':str(self.root)})
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertTrue(result.stdout.startswith('CPU '),result.stdout)
 
@@ -111,7 +115,7 @@ class DashboardTests(unittest.TestCase):
         proc=self.root/'proc';proc.mkdir()
         stats=iter(['cpu 100 0 50 850 0 0 0 0','cpu 120 0 60 920 0 0 0 0'])
         (proc/'stat').write_text(next(stats))
-        (proc/'meminfo').write_text('MemTotal: 1000 kB\nMemFree: 200 kB\n')
+        (proc/'meminfo').write_text('MemTotal: 1000 kB\nMemFree: 100 kB\nMemAvailable: 200 kB\n')
         values=[(proc/'stat').read_text(),next(stats)]
         # Update /proc/stat at the second sample.
         original=(proc/'stat').read_text()

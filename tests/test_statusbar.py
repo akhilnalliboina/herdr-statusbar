@@ -160,6 +160,15 @@ class StatusBarTests(unittest.TestCase):
         self.assertEqual(self.bar().collect(self.repo), "Git Δ0 · PR ?")
         self.assertEqual(self.bar(Settings(show_errors=False)).collect(self.repo), "Git Δ0")
 
+    def test_git_status_timeout_shows_marker_and_keeps_pr(self):
+        def run(argv, cwd, timeout=1):
+            if argv[0] == "git" and "status" in argv:
+                self.assertIn("--untracked-files=normal", argv)
+                return None
+            return self.run_command(argv, cwd, timeout)
+        bar = StatusBar(self.state, Settings(), run=run, clock=lambda: self.now)
+        self.assertEqual(bar.collect(self.repo), "Git … · PR #42 · 5 files · +128 −34")
+
     def test_invalid_remote_data_cannot_inject_terminal_text(self):
         self.response = subprocess.CompletedProcess([], 0, json.dumps(dict(PR, additions="\x1b[31m")).encode(), b"")
         self.assertEqual(self.bar().collect(self.repo), "Git Δ0 · PR ?")
