@@ -81,7 +81,8 @@ def main():
             print("State:", args.state)
             print("Git/PR:", StatusBar(args.state, settings).collect(cwd) or "hidden (no repository/data)")
             print("System:", Dashboard(args.state, settings).collect() or "disabled/no data")
-            print("RAM includes cache; weather sends configured coordinates to Open-Meteo when enabled.")
+            print("RAM: macOS uses top's PhysMem (includes cache); Linux uses MemTotal - MemAvailable.")
+            print("Weather sends configured coordinates to Open-Meteo when enabled.")
             print("PR ? means lookup failed (authentication/network/timeout/invalid data).")
             print("PR gh? means gh is missing. PR cache? means state is not writable/safe.")
             return 0
