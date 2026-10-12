@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2 — 2026-10-12
+
+- Correct the `doctor` RAM note: Linux uses `MemTotal - MemAvailable`; only macOS `top` includes cache.
+
 ## 0.2.1 — 2026-10-12
 
 - Linux RAM now uses `MemAvailable` (falling back to `MemFree` on old kernels), so filesystem cache no longer makes the metric sit at 85–95%.
